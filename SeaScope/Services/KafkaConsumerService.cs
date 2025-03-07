@@ -10,6 +10,7 @@ namespace SeaScope.Services
     {
         private readonly IProjectionService _projectionService;
         private readonly ILogger<KafkaConsumerService> _logger;
+        private readonly IConfiguration _config;
         public ConcurrentDictionary<string, (double Lat, double Lon)> ActiveCameras { get; } = new();
         private bool _isPaused = false;
         private IConsumer<Ignore, string> _consumer;
@@ -22,26 +23,31 @@ namespace SeaScope.Services
         {
             _projectionService = projectionService;
             _logger = logger;
+            _config = config;
+            MaxDistanceNm = _config.GetValue<double>("MaxDistanceNm");
 
-            MaxDistanceNm = config.GetValue<double>("MaxDistanceNm");
-
-            string baseUri = "https://192.168.1.42:44311/api/services/app/";
-
-            string configFilePath = "camera_config.json";
+            // 从配置中读取相机相关参数
+            string baseUri = _config.GetValue<string>("CameraConfig:BaseUri") ?? "https://192.168.1.42:44311/api/services/app/";
+            string configFilePath = _config.GetValue<string>("CameraConfig:ConfigFilePath") ?? "camera_config.json";
             var cameraController = new CameraController(baseUri, configFilePath);
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            var config = new ConsumerConfig
+            // 从配置中读取 Kafka 配置
+            var kafkaConfig = new ConsumerConfig
             {
-                BootstrapServers = "192.168.1.75:9092",
-                GroupId = "ais-consumer-group",
-                AutoOffsetReset = AutoOffsetReset.Earliest
+                BootstrapServers = _config.GetValue<string>("Kafka:Consumer:BootstrapServers"),
+                GroupId = _config.GetValue<string>("Kafka:Consumer:GroupId"),
+                AutoOffsetReset = Enum.Parse<AutoOffsetReset>(_config.GetValue<string>("Kafka:Consumer:AutoOffsetReset")),
+                EnableAutoCommit = _config.GetValue<bool>("Kafka:Consumer:EnableAutoCommit", false),
+                SessionTimeoutMs = _config.GetValue<int>("Kafka:Consumer:SessionTimeoutMs", 30000),
+                MaxPollIntervalMs = _config.GetValue<int>("Kafka:Consumer:MaxPollIntervalMs", 300000)
             };
 
-            _consumer = new ConsumerBuilder<Ignore, string>(config).Build();
-            _consumer.Subscribe("deviceAisDymamicTopic");
+            _consumer = new ConsumerBuilder<Ignore, string>(kafkaConfig).Build();
+            string topic = _config.GetValue<string>("Kafka:Topic");
+            _consumer.Subscribe(topic);
 
             while (!cancellationToken.IsCancellationRequested)
             {
