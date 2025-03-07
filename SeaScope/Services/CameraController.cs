@@ -53,7 +53,7 @@ namespace SeaScope.Services
         }
 
 
-        public static (int X, int Y) ConvertToScreenCoords(string deviceId, (double Lat, double Lon) shipLoc)
+        public static (float X, float Y) ConvertToScreenCoords(string deviceId, (double Lat, double Lon) shipLoc)
         {
             if (!cameraInfoDict.TryGetValue(deviceId, out var cameraInfo))
             {
@@ -83,8 +83,9 @@ namespace SeaScope.Services
 
             // 投影点到相机坐标
             Point point = CameraProjection.ProjectPoint(new Vector3((float)translation.X, (float)translation.Y, (float)translation.Z), newK, R);
+            var uv = ((float)point.X/ cameraInfo.VideoWidth, (float)point.Y/cameraInfo.VideoHeight);
             //Console.WriteLine($"Projected Point: {uv.X}, {uv.Y}");
-            return (point.X, point.Y);
+            return uv;
 
         }
     }

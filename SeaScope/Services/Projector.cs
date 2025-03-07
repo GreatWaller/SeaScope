@@ -53,7 +53,7 @@ namespace SeaScope.Services
                 .SendAsync("ReceiveProjection", projectionData);
         }
 
-        private (int X, int Y) ConvertToScreenCoords(double lat, double lon)
+        private (float X, float Y) ConvertToScreenCoords(double lat, double lon)
         {
             // 投影逻辑待实现
             var point = CameraController.ConvertToScreenCoords(_camId, (lat, lon));
