@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Confluent.Kafka;
+using Microsoft.AspNetCore.SignalR;
 using SeaScope.Services;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
@@ -10,26 +11,42 @@ namespace SeaScope.Hubs
         private readonly IKafkaConsumerService _kafkaService;
         private static int _activeClients = 0;
         private static readonly ConcurrentDictionary<string, string> _clientGroups = new();
-
-        public CameraHub(IKafkaConsumerService kafkaService)
+        private static Dictionary<string, (double Lat, double Lon)> _cameraLocations;
+        public CameraHub(IKafkaConsumerService kafkaService, IConfiguration config)
         {
             _kafkaService = kafkaService;
+            var section = config.GetSection("CameraLocations");
+            _cameraLocations = section.GetChildren()
+                .ToDictionary(
+                    x => x.Key,  // 获取键 (如 "cam1", "cam2")
+                    x => (       // 解析值
+                        Lat: x.GetValue<double>("Lat"),
+                        Lon: x.GetValue<double>("Lon")
+                    )
+                );
         }
 
         public async Task SelectCamera(string camId)
         {
-            // 获取当前客户端的旧组（如果存在）
             if (_clientGroups.TryGetValue(Context.ConnectionId, out var oldCamId))
             {
-                // 从旧组中移除当前客户端
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, oldCamId);
+                if (ClientsInGroup(oldCamId))
+                {
+                    _kafkaService.ActiveCameras.TryRemove(oldCamId, out _);
+                }
             }
 
-            // 将当前客户端加入新组
             await Groups.AddToGroupAsync(Context.ConnectionId, camId);
-
-            // 更新客户端的组状态
             _clientGroups[Context.ConnectionId] = camId;
+
+            if (!_kafkaService.ActiveCameras.ContainsKey(camId))
+            {
+                if (_cameraLocations?.ContainsKey(camId) == true)
+                {
+                    _kafkaService.ActiveCameras[camId] = _cameraLocations[camId];
+                }
+            }
         }
 
         public override async Task OnConnectedAsync()
@@ -41,12 +58,15 @@ namespace SeaScope.Hubs
             await base.OnConnectedAsync();
         }
 
-        public override async Task OnDisconnectedAsync(Exception? exception)
+        public override async Task OnDisconnectedAsync(Exception exception)
         {
-            // 客户端断开时清理组成员关系
             if (_clientGroups.TryRemove(Context.ConnectionId, out var oldCamId))
             {
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, oldCamId);
+                if (!ClientsInGroup(oldCamId))
+                {
+                    _kafkaService.ActiveCameras.TryRemove(oldCamId, out _);
+                }
             }
 
             if (Interlocked.Decrement(ref _activeClients) == 0)
@@ -54,6 +74,17 @@ namespace SeaScope.Hubs
                 _kafkaService.Pause();
             }
             await base.OnDisconnectedAsync(exception);
+        }
+
+        private bool ClientsInGroup(string camId)
+        {
+            return _clientGroups.Values.Any(g => g == camId);
+        }
+
+        // 新增：检查某个相机组是否有客户端
+        public static bool HasClientsInGroup(string camId)
+        {
+            return _clientGroups.Values.Any(g => g == camId);
         }
     }
 }

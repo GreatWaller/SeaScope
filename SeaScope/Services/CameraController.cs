@@ -52,23 +52,25 @@ namespace SeaScope.Services
             return intrinsicsDict;
         }
 
-        public static Point? ProjectToCameraCoordinates(string deviceId, Vector3 worldPosition)
+
+        public static (int X, int Y) ConvertToScreenCoords(string deviceId, (double Lat, double Lon) shipLoc)
         {
             if (!cameraInfoDict.TryGetValue(deviceId, out var cameraInfo))
             {
                 Console.WriteLine($"Camera with DeviceId {deviceId} not found.");
-                return null;
+                return (-1,-1);
             }
 
             if (!cameraIntrinsics.TryGetValue(deviceId, out var K))
             {
                 Console.WriteLine($"Intrinsics not found for DeviceId {deviceId}.");
-                return null;
+                return (-1, -1);
             }
+            var translation = CameraProjection.ComputeTranslation(cameraInfo.Latitude,cameraInfo.Longitude,cameraInfo.Altitude, shipLoc.Lat, shipLoc.Lon,0);
 
             // 获取相机状态
-            CameraStatus status = cameraService.GetCurrentStatus(deviceId);
-            Console.WriteLine($"CameraStatus: {status.PanPosition}, {status.TiltPosition}, {status.ZoomPosition}");
+            CameraStatus status = cameraService.GetCurrentStatus(cameraInfo.DeviceId);
+            //Console.WriteLine($"CameraStatus: {status.PanPosition}, {status.TiltPosition}, {status.ZoomPosition}");
 
             // 获取相机安装位置的倾角
             float installationTilt = cameraInfo.HomeTiltToHorizon;
@@ -80,23 +82,10 @@ namespace SeaScope.Services
             var newK = CameraProjection.UpdateIntrinsics(K, status.ZoomPosition);
 
             // 投影点到相机坐标
-            Point uv = CameraProjection.ProjectPoint(worldPosition, newK, R);
+            Point point = CameraProjection.ProjectPoint(new Vector3((float)translation.X, (float)translation.Y, (float)translation.Z), newK, R);
             //Console.WriteLine($"Projected Point: {uv.X}, {uv.Y}");
+            return (point.X, point.Y);
 
-            return uv;
-        }
-
-        public static (int X, int Y) ConvertToScreenCoords(string deviceId, (double X, double Y, double Z) shipLoc)
-        {
-            var point = ProjectToCameraCoordinates(deviceId, new Vector3((float)shipLoc.X, (float)shipLoc.Y, (float)shipLoc.Z));
-            if (point != null)
-            {
-                return (point.Value.X, point.Value.Y);
-            }
-            else
-            {
-                return (0, 0);
-            }
         }
     }
 }

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using SeaScope.Models;
 using SeaScope.Utilities;
+using System.Collections.Concurrent;
 
 namespace SeaScope.Services
 {
@@ -9,7 +10,7 @@ namespace SeaScope.Services
     {
         private readonly IProjectionService _projectionService;
         private readonly ILogger<KafkaConsumerService> _logger;
-        private readonly Dictionary<string, (double Lat, double Lon)> _cameraLocations;
+        public ConcurrentDictionary<string, (double Lat, double Lon)> ActiveCameras { get; } = new();
         private bool _isPaused = false;
         private IConsumer<Ignore, string> _consumer;
         private readonly double MaxDistanceNm = 5000;
@@ -21,15 +22,7 @@ namespace SeaScope.Services
         {
             _projectionService = projectionService;
             _logger = logger;
-            var section = config.GetSection("CameraLocations");
-            _cameraLocations = section.GetChildren()
-                .ToDictionary(
-                    x => x.Key,  // 获取键 (如 "cam1", "cam2")
-                    x => (       // 解析值
-                        Lat: x.GetValue<double>("Lat"),
-                        Lon: x.GetValue<double>("Lon")
-                    )
-                );
+
             MaxDistanceNm = config.GetValue<double>("MaxDistanceNm");
 
             string baseUri = "https://192.168.1.42:44311/api/services/app/";
@@ -81,14 +74,14 @@ namespace SeaScope.Services
 
         private void ProcessAISData(AISData aisData)
         {
-            foreach (var (camId, camLoc) in _cameraLocations)
+            foreach (var (camId, camLoc) in ActiveCameras)
             {
                 double distance = GeoCalculator.ComputeDistance(
                     (aisData.Latitude, aisData.Longitude),
                     (camLoc.Lat, camLoc.Lon));
 
                 double d = CoordinateConverter.ComputeDistance((camLoc.Lat, camLoc.Lon), (aisData.Latitude, aisData.Longitude));
-                Console.WriteLine($"ShipGeo: {aisData.Latitude},{aisData.Longitude}; Distance: {distance}:{d}");
+                Console.WriteLine($"Camera: {camId}; ShipGeo: {aisData.Latitude},{aisData.Longitude}; Distance: {distance}:{d}");
                 if (distance <= MaxDistanceNm)
                 {
                     _projectionService.AddShip(camId, aisData.Mmsi, aisData.Latitude, aisData.Longitude);
