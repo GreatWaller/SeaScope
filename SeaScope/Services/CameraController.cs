@@ -70,13 +70,20 @@ namespace SeaScope.Services
 
             // 获取相机状态
             CameraStatus status = cameraService.GetCurrentStatus(cameraInfo.DeviceId);
-            //Console.WriteLine($"CameraStatus: {status.PanPosition}, {status.TiltPosition}, {status.ZoomPosition}");
+            Console.WriteLine($"CameraStatus: {status.PanPosition}, {status.TiltPosition}, {status.ZoomPosition}");
 
             // 获取相机安装位置的倾角
             float installationTilt = cameraInfo.HomeTiltToHorizon;
 
             // 计算旋转矩阵
-            var R = CameraProjection.ComputeRotationMatrix(status.TiltPosition + installationTilt, -status.PanPosition, 0);
+            // 计算旋转矩阵
+            var tilt = status.TiltPosition + installationTilt;
+            var pan = -status.PanPosition;
+            if (pan > 90 || pan < -90)
+            {
+                tilt = -tilt;
+            }
+            var R = CameraProjection.ComputeRotationMatrix(tilt, pan, 0);
 
             // 更新内参矩阵
             var newK = CameraProjection.UpdateIntrinsics(K, status.ZoomPosition);

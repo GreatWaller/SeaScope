@@ -10,7 +10,7 @@ namespace SeaScope.Utilities
         public static (double X, double Y, double Z) ComputeTranslation(double latCam, double lonCam, double altCam, double latShip, double lonShip, double altShip)
         {
             var translationXY = CoordinateConverter.GetRelativePosition(lonCam, latCam, lonShip, latShip);
-            var translationZ = altShip - altShip;
+            var translationZ = altShip - altCam;
             return (translationXY[0], translationXY[1], translationZ);
         }
 
