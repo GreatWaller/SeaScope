@@ -23,16 +23,22 @@ namespace SeaScope
             //});
             builder.Services.AddCors(options =>
             {
-                options.AddDefaultPolicy(
-                    builder =>
+                options.AddDefaultPolicy(policy =>
+                {
+                    var allowedOrigins = builder.Configuration
+                        .GetSection("Cors:AllowedOrigins")
+                        .Get<string[]>() ?? new[] { "http://localhost" }; // fallback default
+
+                    if (allowedOrigins == null || !allowedOrigins.Any())
                     {
-                        builder.WithOrigins("http://127.0.0.1:5500",
-                                "http://localhost:5500",
-                                "http://localhost")
-                            .AllowAnyHeader()
-                            .AllowAnyMethod()
-                            .AllowCredentials();
-                    });
+                        throw new InvalidOperationException("CORS origins configuration is missing or empty");
+                    }
+
+                    policy.WithOrigins(allowedOrigins)
+                          .AllowAnyHeader()
+                          .AllowAnyMethod()
+                          .AllowCredentials();
+                });
             });
             builder.Services.AddSingleton<IKafkaConsumerService, KafkaConsumerService>();
             builder.Services.AddSingleton<IProjectionService, ProjectionService>();

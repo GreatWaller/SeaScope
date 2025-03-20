@@ -77,9 +77,10 @@ namespace SeaScope.Services
 
         public void Pause() => _isPaused = true;
         public void Resume() => _isPaused = false;
-
+        //private int index = 0;
         private void ProcessAISData(AISData aisData)
         {
+            //Console.WriteLine(index++);
             foreach (var (camId, camLoc) in ActiveCameras)
             {
                 double distance = GeoCalculator.ComputeDistance(
