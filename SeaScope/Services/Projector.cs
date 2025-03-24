@@ -29,6 +29,7 @@ namespace SeaScope.Services
             {
                 if (_shipQueue.TryDequeue(out var ship))
                 {
+                    Console.WriteLine($"Drawing Queue: {_shipQueue.Count}");
                     await ProjectToCamera(ship);
                 }
                 await Task.Delay(100); // 避免忙等待

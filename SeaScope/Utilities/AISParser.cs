@@ -19,5 +19,16 @@ namespace SeaScope.Utilities
                 throw new ArgumentException("Failed to parse AIS message", ex);
             }
         }
+        public static ProcessedAISData ParseWithKey(string rawMessage)
+        {
+            try
+            {
+                return JsonConvert.DeserializeObject<ProcessedAISData>(rawMessage);
+            }
+            catch (Exception ex)
+            {
+                throw new ArgumentException("Failed to parse AIS message", ex);
+            }
+        }
     }
 }
