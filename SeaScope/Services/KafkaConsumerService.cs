@@ -100,14 +100,14 @@ namespace SeaScope.Services
         {
             foreach (var (camId, camLoc) in ActiveCameras)
             {
-                double distance = GeoCalculator.ComputeDistance(
-                    (aisData.Latitude, aisData.Longitude),
-                    (camLoc.Lat, camLoc.Lon));
+                //double distance = GeoCalculator.ComputeDistance(
+                //    (aisData.Latitude, aisData.Longitude),
+                //    (camLoc.Lat, camLoc.Lon));
 
-                double d = CoordinateConverter.ComputeDistance((camLoc.Lat, camLoc.Lon), (aisData.Latitude, aisData.Longitude));
+                double distance = CoordinateConverter.ComputeDistance((camLoc.Lat, camLoc.Lon), (aisData.Latitude, aisData.Longitude));
                 if (distance <= MaxDistanceNm)
                 {
-                    Console.WriteLine($"Camera: {camId}; MMSI: {aisData.Mmsi}; Name:{aisData.Name}; ShipGeo: {aisData.Latitude},{aisData.Longitude}; Distance: {distance}:{d}");
+                    Console.WriteLine($"Camera: {camId}; MMSI: {aisData.Mmsi}; Name:{aisData.Name}; ShipGeo: {aisData.Latitude},{aisData.Longitude}; Distance: {distance}");
                     _projectionService.AddShip(camId, aisData.Mmsi, aisData.Latitude, aisData.Longitude);
                 }
             }

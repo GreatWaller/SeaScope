@@ -57,7 +57,8 @@ namespace SeaScope.Services
         private (float X, float Y) ConvertToScreenCoords(double lat, double lon)
         {
             // 投影逻辑待实现
-            var point = CameraController.ConvertToScreenCoords(_camId, (lat, lon));
+            //var point = CameraController.ConvertToScreenCoords(_camId, lat, lon);
+            var point = CameraController.ConvertToScreenCoords2(_camId, lat, lon);
             return point;
             //return (100, 200); // 示例返回值
         }
